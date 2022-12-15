@@ -21,12 +21,13 @@ This source code is developed based on the BSF skeleton (https://github.com/leon
 #define PP_TRACE_FILE "lp_dataset_tr.mtx.pack"
 //#define PP_LPP_FILE	"lpp9_4000.txt"	// File with initial data
 //#define PP_LPP_FILE	"python/lpp7_100.txt"
+#define PP_RETINA_FILE "lp_dataset_ret.mtx.pack" // File with retina generated for every point
 #define PP_IMAGE_FILE "lp_dataset_im.csv"		// File with output results
 #define PP_INPUT_FILE	"point.txt"		// File with coordinates of target point
 #define PP_PICTURE_FILE	"picture.txt"	// File with coordinates suitable to display
 #define PP_RECEPTIVE_FIELD_FILE "receptive_field.txt" // File with coordinates of receptive field points
 #define PP_IMAGE_OUT					// Flag to save list of target distances to the file
-//#define PP_RECEPTIVE_FIELD_OUT			// Flag to save receptive field points to the file
+#define PP_RECEPTIVE_FIELD_OUT			// Flag to save receptive field points to the file
 
 //-------------------------- Macroses ---------------------------
 #define PF_MIN(x,y) (x<y?x:y)

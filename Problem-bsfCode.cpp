@@ -61,12 +61,29 @@ void PC_bsf_Start(bool* success) {
 		return;
 	}
 
-
 	PD_outFilename = PP_PATH;
 	PD_outFilename += PP_IMAGE_FILE;
 	PD_stream_outFile = fopen(PD_outFilename.c_str(), "w");
 	if (PD_stream_outFile == NULL) {
 		cout << '[' << BSF_sv_mpiRank << "]: Failure of opening file '" << PD_outFilename << "'.\n";
+		*success = false;
+		return;
+	}
+
+	//--------------- Opening retina file ------------------
+	PD_retFilename = PP_PATH;
+	PD_retFilename += PP_RETINA_FILE;
+
+	PD_stream_retFile = fopen(PD_retFilename.c_str(), "w");
+	if (PD_stream_retFile == NULL) {
+		cout << '[' << BSF_sv_mpiRank << "]: Failure of opening file '" << PD_retFilename << "'.\n";
+		*success = false;
+		return;
+	}
+	if (fprintf(PD_stream_retFile, "%d\n", PD_problemsNumber) < 1) {
+		//
+		cout
+			<< "Can't write package size to " << PD_retFilename << endl;
 		*success = false;
 		return;
 	}
@@ -79,6 +96,7 @@ void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 	if (PD_initState) {
 		PD_read_state = PP_STATE_NEW_PROBLEM;
 		PD_initState = false;
+		parameter->k = 0;
 	}
 	else
 		PD_read_state = parameter->state;
@@ -179,7 +197,7 @@ void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 #endif
 
 #ifdef PP_RECEPTIVE_FIELD_OUT
-	PD_field = new PT_float_T * [PD_K];
+	PD_field = new PT_float_T* [PD_K];
 #endif
 }
 
@@ -253,6 +271,10 @@ void PC_bsf_ProcessResults(
 ) {
 #ifdef PP_IMAGE_OUT
 	PD_I[parameter->k] = reduceResult->objectiveDistance;
+#endif
+#ifdef PP_RECEPTIVE_FIELD_OUT
+	PD_field[parameter->k] = new PT_float_T[PD_n];
+	G(*parameter, PD_field[parameter->k]);
 #endif
 	parameter->k += 1;
 	if (parameter->k >= PD_K) {
@@ -393,6 +415,7 @@ void PC_bsf_IterOutput_3(PT_bsf_reduceElem_T_3* reduceResult, int reduceCounter,
 
 // 0. Start
 void PC_bsf_ProblemOutput(PT_bsf_reduceElem_T* reduceResult, int reduceCounter, PT_bsf_parameter_T parameter, double t) {
+	// Output precedents
 	if (fprintf(PD_stream_outFile, "%d;%d;%d", PD_id, PD_currentProblem, PD_currentTrace) == 0)
 		cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << endl;
 	for(int i = 0; i < PD_K; i++)
@@ -404,6 +427,19 @@ void PC_bsf_ProblemOutput(PT_bsf_reduceElem_T* reduceResult, int reduceCounter, 
 	fprintf(PD_stream_outFile, "\n");
 	cout << "End of writing to " << PD_outFilename << endl;
 	PD_id++;
+
+#ifdef PP_RECEPTIVE_FIELD_OUT
+	// Outpur retinas
+	if (fprintf(PD_stream_retFile, "%d\t%d\n", PD_K, PD_n) == 0)
+		cout << "Error writing to " << PD_retFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << endl;
+	for (int i = 0; i < PD_K; i++) {
+		for (int j = 0; j < PD_n; j++)
+			if (fprintf(PD_stream_retFile, "%.14f\t", PD_field[i][j]) == 0)
+				cout << "Error writing to " << PD_retFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_I index" << i << endl;
+		fprintf(PD_stream_retFile, "\n");
+	}
+	cout << "End of writing to " << PD_retFilename << endl;
+#endif
 }
 
 // 1. Movement on Polytope
