@@ -215,12 +215,14 @@ void PC_bsf_MapF(PT_bsf_mapElem_T* mapElem, PT_bsf_reduceElem_T* reduceElem, int
 	PT_vector_T target;
 	int i = mapElem->inequalityNo;
 	G(BSF_sv_parameter, PD_g);
-	targetProjection(i, PD_g, target);
-	if (dotproduct_Vector(PD_A[i], PD_c) > 0 && isInnerPoint(target)) {
-		reduceElem->objectiveDistance = objectiveDistance(target);
+	//targetProjection(i, PD_g, target);
+	if (dotproduct_Vector(PD_A[i], PD_c) > 0/* && isInnerPoint(target)*/) {
+		//if (i == 2) {
+			//reduceElem->objectiveDistance = objectiveDistance(target);
+		reduceElem->objectiveDistance = bias(i);
 	}
 	else
-		reduceElem->objectiveDistance = FLT_MAX;
+		reduceElem->objectiveDistance = -FLT_MAX;
 }
 
 // 1. CheckIn
@@ -239,13 +241,13 @@ void PC_bsf_MapF_3(PT_bsf_mapElem_T* mapElem, PT_bsf_reduceElem_T_3* reduceElem,
 // 0. Pseudo-pojection
 void PC_bsf_ReduceF(PT_bsf_reduceElem_T* x, PT_bsf_reduceElem_T* y, PT_bsf_reduceElem_T* z) { // z = x + y
 	if (isfinite(x->objectiveDistance) && isfinite(y->objectiveDistance))
-		z->objectiveDistance = PF_MIN(x->objectiveDistance, y->objectiveDistance);
+		z->objectiveDistance = PF_MAX(x->objectiveDistance, y->objectiveDistance);
 	else if (isfinite(x->objectiveDistance))
 		z->objectiveDistance = x->objectiveDistance;
 	else if (isfinite(y->objectiveDistance))
 		z->objectiveDistance = y->objectiveDistance;
 	else
-		z->objectiveDistance = FLT_MAX;
+		z->objectiveDistance = -FLT_MAX;
 }
 
 // 1. CheckIn
@@ -606,4 +608,9 @@ inline PT_float_T objectiveDistance(PT_vector_T x) {
 	subtract_Vector(temp, x);
 
 	return (PT_float_T)(dotproduct_Vector(PD_c, temp) / sqrt(dotproduct_Vector(PD_c, PD_c)));
+}
+
+inline PT_float_T bias(int i) {
+	PT_float_T result = (PT_float_T)((dotproduct_Vector(PD_A[i], PD_g) - PD_b[i]) / dotproduct_Vector(PD_A[i], PD_c)) * sqrt(dotproduct_Vector(PD_c, PD_c));
+	return result;
 }

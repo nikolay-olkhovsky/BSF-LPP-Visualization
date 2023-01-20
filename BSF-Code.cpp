@@ -89,6 +89,7 @@ static void BC_Master() {// The head function of the master process.
 			}
 			//if (BD_jobCase != BD_JOB_RESET)
 			//	PC_bsf_ProblemOutput(&BD_extendedReduceResult_P->elem, BD_extendedReduceResult_P->reduceCounter, BD_order.parameter, BD_t);
+			
 			BD_newJobCase = BD_JOB_RESET;
 			//BD_exit = BD_EXIT;
 			//break;
@@ -513,11 +514,14 @@ static void BC_Init(bool* success) {// Performs the memory allocation and the in
 	int offset, first, last, subListSize;
 	/// 
 	PC_bsf_SetListSize(&BD_listSize);
+	cout << BD_rank << ": list_Size = " << BD_listSize << endl;
+	cout << BD_rank << ": BD_size = " << BD_size << endl;
 	if (BD_size > BD_listSize + 1) {
-		if (BD_rank == 0) cout << "Error: MPI_SIZE must be < Map List Size + 2 =" << BD_listSize + 2 << endl;
+		cout << BD_rank << " Error: MPI_SIZE must be < Map List Size + 2 = " << BD_listSize + 2 << endl;
 		MPI_Finalize();
 		exit(1);
 	};
+
 	BD_masterRank = BD_size - 1;
 	BD_numOfWorkers = BD_size - 1;
 	PC_bsf_SetInitParameter(&(BD_order.parameter));

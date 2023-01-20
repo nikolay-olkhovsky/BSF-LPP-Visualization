@@ -31,6 +31,7 @@ This source code is developed based on the BSF skeleton (https://github.com/leon
 
 //-------------------------- Macroses ---------------------------
 #define PF_MIN(x,y) (x<y?x:y)
+#define PF_MAX(x,y) (x>y?x:y)
 
 //-------------------------- States ---------------------------
 #define PP_STATE_NEW_PROBLEM		0
