@@ -80,6 +80,7 @@ void PC_bsf_Start(bool* success) {
 		*success = false;
 		return;
 	}
+	/*
 	if (fprintf(PD_stream_retFile, "%d\n", PD_problemsNumber) < 1) {
 		//
 		cout
@@ -87,11 +88,12 @@ void PC_bsf_Start(bool* success) {
 		*success = false;
 		return;
 	}
+	*/
 }
 
 void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 	float buf;
-	int readNumber;
+	int readNumber, pid;
 
 	if (PD_initState) {
 		PD_read_state = PP_STATE_NEW_PROBLEM;
@@ -103,8 +105,16 @@ void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 
 	switch (PD_read_state) {
 	case PP_STATE_NEW_PROBLEM:
-		if (fscanf(PD_stream_lppFile, "%d%d", &PD_m, &PD_n) == 0) {
+		if (fscanf(PD_stream_lppFile, "%d%d%d", &pid, &PD_m, &PD_n) == 0) {
 			cout << '[' << BSF_sv_mpiRank << "]: Unexpected end of LPP file header" << endl;
+			*success = false;
+			return;
+		}
+
+		if (pid != PD_currentProblem+1) {
+			cout	<< "[" << BSF_sv_mpiRank << "] :"
+					<< "Wrong problem ID in LPP file: " << pid 
+					<< " (expected: " << PD_currentProblem + 1 << ")" << endl;
 			*success = false;
 			return;
 		}
@@ -148,8 +158,16 @@ void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 			//PD_z[j] = buf + 1.;
 		}
 
-		if (fscanf(PD_stream_traceFile, "%d%d", &PD_tracesNumber, &readNumber) == 0) {
+		if (fscanf(PD_stream_traceFile, "%d%d%d", &pid, &PD_tracesNumber, &readNumber) == 0) {
 			cout << '[' << BSF_sv_mpiRank << "]: Unexpected end of TRACE file header" << endl;
+			*success = false;
+			return;
+		}
+
+		if (pid != PD_currentProblem + 1) {
+			cout << "[" << BSF_sv_mpiRank << "] :"
+				<< "Wrong problem ID in TRACES file: " << pid
+				<< " (expected: " << PD_currentProblem + 1 << ")" << endl;
 			*success = false;
 			return;
 		}
@@ -432,14 +450,14 @@ void PC_bsf_ProblemOutput(PT_bsf_reduceElem_T* reduceResult, int reduceCounter, 
 
 #ifdef PP_RECEPTIVE_FIELD_OUT
 	// Outpur retinas
-	if (fprintf(PD_stream_retFile, "%d\t%d\n", PD_K, PD_n) == 0)
+	if (fprintf(PD_stream_retFile, "%d;%d;%d", PD_id-1, PD_K, PD_n) == 0)
 		cout << "Error writing to " << PD_retFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << endl;
 	for (int i = 0; i < PD_K; i++) {
 		for (int j = 0; j < PD_n; j++)
-			if (fprintf(PD_stream_retFile, "%.14f\t", PD_field[i][j]) == 0)
+			if (fprintf(PD_stream_retFile, ";%.14f", PD_field[i][j]) == 0)
 				cout << "Error writing to " << PD_retFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_I index" << i << endl;
-		fprintf(PD_stream_retFile, "\n");
 	}
+	fprintf(PD_stream_retFile, "\n");
 	cout << "End of writing to " << PD_retFilename << endl;
 #endif
 }
