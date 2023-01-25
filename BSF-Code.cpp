@@ -514,8 +514,6 @@ static void BC_Init(bool* success) {// Performs the memory allocation and the in
 	int offset, first, last, subListSize;
 	/// 
 	PC_bsf_SetListSize(&BD_listSize);
-	cout << BD_rank << ": list_Size = " << BD_listSize << endl;
-	cout << BD_rank << ": BD_size = " << BD_size << endl;
 	if (BD_size > BD_listSize + 1) {
 		cout << BD_rank << " Error: MPI_SIZE must be < Map List Size + 2 = " << BD_listSize + 2 << endl;
 		MPI_Finalize();
