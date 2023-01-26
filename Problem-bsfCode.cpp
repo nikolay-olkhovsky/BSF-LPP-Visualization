@@ -105,92 +105,100 @@ void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 
 	switch (PD_read_state) {
 	case PP_STATE_NEW_PROBLEM:
-		if (fscanf(PD_stream_lppFile, "%d%d%d", &pid, &PD_m, &PD_n) == 0) {
-			cout << '[' << BSF_sv_mpiRank << "]: Unexpected end of LPP file header" << endl;
-			*success = false;
-			return;
-		}
+		do {
+			if (fscanf(PD_stream_lppFile, "%d%d%d", &pid, &PD_m, &PD_n) == 0) {
+				cout << '[' << BSF_sv_mpiRank << "]: Unexpected end of LPP file header" << endl;
+				*success = false;
+				return;
+			}
 
-		if (pid != PD_currentProblem+1) {
-			cout	<< "[" << BSF_sv_mpiRank << "] :"
-					<< "Wrong problem ID in LPP file: " << pid 
+			if (pid != PD_currentProblem + 1) {
+				cout << "[" << BSF_sv_mpiRank << "] :"
+					<< "Wrong problem ID in LPP file: " << pid
 					<< " (expected: " << PD_currentProblem + 1 << ")" << endl;
-			*success = false;
-			return;
-		}
+				*success = false;
+				return;
+			}
 
-		if (PD_m > PP_MAX_M || PD_n > PP_MAX_N) {
-			cout << "[" << BSF_sv_mpiRank << "] :" << endl
-			<< "Wrong problem parameters!" << endl
-			<< "Number of inequalities: " << PD_m << " (max: " << PP_MAX_M << ")." << endl
-			<< "Number of dimensions: " << PD_n << " (max: " << PP_MAX_N << ")." << endl;
-			*success = false;
-			return;
-		}
+			if (PD_m > PP_MAX_M || PD_n > PP_MAX_N) {
+				cout << "[" << BSF_sv_mpiRank << "] :" << endl
+					<< "Wrong problem parameters!" << endl
+					<< "Number of inequalities: " << PD_m << " (max: " << PP_MAX_M << ")." << endl
+					<< "Number of dimensions: " << PD_n << " (max: " << PP_MAX_N << ")." << endl;
+				*success = false;
+				return;
+			}
 
-		for (int i = 0; i < PD_m; i++) {
-			for (int j = 0; j < PD_n; j++) {
+			for (int i = 0; i < PD_m; i++) {
+				for (int j = 0; j < PD_n; j++) {
+					if (fscanf(PD_stream_lppFile, "%f", &buf) == 0) {
+						cout << '[' << BSF_sv_mpiRank << "]: Unexpected end of LPP file (A row)" << endl;
+						*success = false;
+						//				system("pause");
+						return;
+					}
+					PD_A[i][j] = buf;
+				}
 				if (fscanf(PD_stream_lppFile, "%f", &buf) == 0) {
-					cout << '[' << BSF_sv_mpiRank << "]: Unexpected end of LPP file (A row)" << endl;
+					cout << '[' << BSF_sv_mpiRank << "]: Unexpected end of LPP file (b coefficient)" << endl;
 					*success = false;
-					//				system("pause");
+					//			system("pause");
 					return;
 				}
-				PD_A[i][j] = buf;
+				PD_b[i] = buf;
 			}
-			if (fscanf(PD_stream_lppFile, "%f", &buf) == 0) {
-				cout << '[' << BSF_sv_mpiRank << "]: Unexpected end of LPP file (b coefficient)" << endl;
-				*success = false;
-				//			system("pause");
-				return;
+
+			for (int j = 0; j < PD_n; j++) {
+				if (fscanf(PD_stream_lppFile, "%f", &buf) == 0) {
+					cout << '[' << BSF_sv_mpiRank << "]: Unexpected end of LPP file (c vector)" << endl;
+					*success = false;
+					//			system("pause");
+					return;
+				}
+				PD_c[j] = buf;
+				//PD_z[j] = buf + 1.;
 			}
-			PD_b[i] = buf;
-		}
 
-		for (int j = 0; j < PD_n; j++) {
-			if (fscanf(PD_stream_lppFile, "%f", &buf) == 0) {
-				cout << '[' << BSF_sv_mpiRank << "]: Unexpected end of LPP file (c vector)" << endl;
-				*success = false;
-				//			system("pause");
-				return;
-			}
-			PD_c[j] = buf;
-			//PD_z[j] = buf + 1.;
-		}
-
-		if (fscanf(PD_stream_traceFile, "%d%d%d", &pid, &PD_tracesNumber, &readNumber) == 0) {
-			cout << '[' << BSF_sv_mpiRank << "]: Unexpected end of TRACE file header" << endl;
-			*success = false;
-			return;
-		}
-
-		if (pid != PD_currentProblem + 1) {
-			cout << "[" << BSF_sv_mpiRank << "] :"
-				<< "Wrong problem ID in TRACES file: " << pid
-				<< " (expected: " << PD_currentProblem + 1 << ")" << endl;
-			*success = false;
-			return;
-		}
-
-		if (readNumber != PD_n) {
-			cout << "[" << BSF_sv_mpiRank << "] :" << endl
-			<< "Wrong traces file format!" << endl
-			<< "Dimension of traces: " << readNumber << " (PD_n: " << PD_n << ")." << endl
-			<< "Problem ID: " << PD_currentProblem << endl;
-			*success = false;
-			return;
-		}
-		for (int i = 0; i < PD_n; i++) {
-			if (fscanf(PD_stream_traceFile, "%f", &buf) == 0) {
-				cout << "[" << BSF_sv_mpiRank << "]: Unexpected end of TRACE file (first point)" << endl;
+			if (fscanf(PD_stream_traceFile, "%d%d%d", &pid, &PD_tracesNumber, &readNumber) == 0) {
+				cout << '[' << BSF_sv_mpiRank << "]: Unexpected end of TRACE file header" << endl;
 				*success = false;
 				return;
 			}
-			PD_nextPoint[i] = buf; // Read first point in the trace
-		}
 
-		PD_currentProblem++;
-		PD_currentTrace = 0;
+			if (pid != PD_currentProblem + 1) {
+				cout << "[" << BSF_sv_mpiRank << "] :"
+					<< "Wrong problem ID in TRACES file: " << pid
+					<< " (expected: " << PD_currentProblem + 1 << ")" << endl;
+				*success = false;
+				return;
+			}
+
+			if (readNumber != PD_n) {
+				cout << "[" << BSF_sv_mpiRank << "] :" << endl
+					<< "Wrong traces file format!" << endl
+					<< "Dimension of traces: " << readNumber << " (PD_n: " << PD_n << ")." << endl
+					<< "Problem ID: " << PD_currentProblem << endl;
+				*success = false;
+				return;
+			}
+
+			for (int i = 0; i < PD_n; i++) {
+				if (fscanf(PD_stream_traceFile, "%f", &buf) == 0) {
+					cout << "[" << BSF_sv_mpiRank << "]: Unexpected end of TRACE file (first point)" << endl;
+					*success = false;
+					return;
+				}
+				PD_nextPoint[i] = buf; // Read first point in the trace
+			}
+
+			if(PD_tracesNumber < 2 && BSF_sv_mpiRank == BSF_sv_mpiMaster)
+				cout << "[" << BSF_sv_mpiRank << "] :" << endl
+				<< "Wrong trace for problem ID: " << pid << endl
+				<< "Traces number: " << PD_tracesNumber << " (must be > 2)." << endl;
+
+			PD_currentProblem++;
+			PD_currentTrace = 0;
+		} while (PD_tracesNumber < 2);
 	case PP_STATE_NEW_POINT:
 		for (int i = 0; i < PD_n; i++) {
 			PD_z[i] = PD_nextPoint[i]; // Move Z to next point in the trace
