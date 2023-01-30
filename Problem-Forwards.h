@@ -25,5 +25,7 @@ inline void basis_Print();
 inline void G(PT_bsf_parameter_T parameter, PT_vector_T out);
 inline bool isInnerPoint(PT_vector_T point);
 inline void targetProjection(int i, PT_vector_T _In, PT_vector_T _Out);
+inline void fieldProjection(PT_vector_T _In, PT_vector_T _Out);
+inline void coordinateAngles(PT_vector_T _In, PT_vector_T _Out);
 inline PT_float_T objectiveDistance(PT_vector_T g);
 inline PT_float_T bias(int i);

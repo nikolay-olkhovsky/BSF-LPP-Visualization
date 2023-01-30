@@ -29,6 +29,8 @@ static PT_vector_T PD_g;	// Point of retina
 static PT_vector_T PD_z;	// Center of retina
 static PT_vector_T PD_nextPoint;	// Next point in the trace
 static PT_vector_T PD_answerVector;	// Answer for the precedent
+static PT_vector_T PD_fieldVector;	// Answer for the precedent
+static PT_vector_T PD_cosVector;	// Answer for the precedent
 
 #ifdef PP_IMAGE_OUT
 static PT_image_T PD_I; // Retina

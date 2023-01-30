@@ -210,10 +210,13 @@ void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 			PD_nextPoint[i] = buf; // And read forward next point in the trace
 			PD_answerVector[i] = PD_nextPoint[i] - PD_z[i];
 		}
+		basis_Init();
+		fieldProjection(PD_answerVector, PD_fieldVector);
+		coordinateAngles(PD_fieldVector, PD_cosVector);
 		norm_Vector(PD_answerVector);
 		PD_currentTrace++;
 	}
-	basis_Init();
+//	basis_Init();
 	PD_K = 1;
 	for (int i = 0; i < PD_n - 1; i++)
 		PD_K *= (2 * PP_ETA + 1);
@@ -451,7 +454,10 @@ void PC_bsf_ProblemOutput(PT_bsf_reduceElem_T* reduceResult, int reduceCounter, 
 			cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_I index" << i << endl;
 	for (int i = 0; i < PD_n; i++)
 		if (fprintf(PD_stream_outFile, ";%f", PD_answerVector[i]) == 0)
-			cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_I index" << i << endl;
+			cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_answerVector index" << i << endl;
+	for (int i = 0; i < PD_n; i++)
+		if (fprintf(PD_stream_outFile, ";%f", PD_cosVector[i]) == 0)
+			cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_cosVector index" << i << endl;
 	fprintf(PD_stream_outFile, "\n");
 	cout << "End of writing to " << PD_outFilename << endl;
 	PD_id++;
@@ -624,6 +630,37 @@ inline void targetProjection(int i, PT_vector_T _In, PT_vector_T _Out) {
 	copy_Vector(projection, _In);
 	subtract_Vector(projection, temp);
 	copy_Vector(_Out, projection);
+}
+
+inline void fieldProjection(PT_vector_T _In, PT_vector_T _Out) {
+	PT_vector_T projection;
+	PT_vector_T temp;
+	PT_vector_T distance;
+	
+	//------------ Computing target projection pi_c ----------//
+	copy_Vector(temp, _In);
+	subtract_Vector(temp, PD_z);
+	copy_Vector(distance, PD_c);
+	multiply_Vector(distance, (PT_float_T)((dotproduct_Vector(PD_c, temp)) / dotproduct_Vector(PD_c, PD_c)));
+	copy_Vector(projection, _In);
+	subtract_Vector(projection, distance);
+	copy_Vector(_Out, projection);
+}
+
+inline void coordinateAngles(PT_vector_T _In, PT_vector_T _Out)
+{
+	PT_vector_T field_vector;
+	PT_float_T length = 0;
+	copy_Vector(field_vector, _In);
+	subtract_Vector(field_vector, PD_z);
+
+	//------------ Computing coordinate angles cos alpha_i ----------//
+	for (int i = 0; i < PD_n; i++)
+		length += field_vector[i] * field_vector[i];
+	length = sqrt(length);
+
+	for(int i = 0; i < PD_n; i++)
+		_Out[i] = dotproduct_Vector(PD_E[i], field_vector) / length;
 }
 
 inline PT_float_T objectiveDistance(PT_vector_T x) {
