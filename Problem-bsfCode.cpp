@@ -211,7 +211,7 @@ void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 			PD_answerVector[i] = PD_nextPoint[i] - PD_z[i];
 		}
 		basis_Init();
-		fieldProjection(PD_answerVector, PD_fieldVector);
+		fieldProjection(PD_nextPoint, PD_fieldVector);
 		coordinateAngles(PD_fieldVector, PD_cosVector);
 		norm_Vector(PD_answerVector);
 		PD_currentTrace++;
