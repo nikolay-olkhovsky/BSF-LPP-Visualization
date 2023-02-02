@@ -12,10 +12,10 @@ This source code is developed based on the BSF skeleton (https://github.com/leon
 #define PP_N		3									// Number of dimensions
 #define PP_MAX_M	25000								// Maximal  number of inequalities
 #define PP_MAX_N	120									// Maximal  space dimension
-#define PP_ETA		5									// Rank of receptive field 		
-#define PP_DELTA	1									// Density of receptive field
+#define PP_ETA		30									// Rank of receptive field 		
+#define PP_DELTA	0.2									// Density of receptive field
 #define PP_MAX_K	2147483647	            			// Maximal number of receptive field points
-#define PP_PATH		"C:/TEMP/"	// Working directory of the application
+#define PP_PATH		"C:/CROSSFIELD/"	// Working directory of the application
 //#define PP_PATH		"/home/olkhovskiina/input/"	// Working directory of the application
 #define PP_LPP_FILE	"lpp.txt.pack"
 #define PP_TRACE_FILE "lp_dataset_tr.mtx.pack"
@@ -28,6 +28,7 @@ This source code is developed based on the BSF skeleton (https://github.com/leon
 #define PP_RECEPTIVE_FIELD_FILE "receptive_field.txt" // File with coordinates of receptive field points
 #define PP_IMAGE_OUT					// Flag to save list of target distances to the file
 #define PP_RECEPTIVE_FIELD_OUT			// Flag to save receptive field points to the file
+#define PP_CROSSFILED	true			// Form of the receptive field (false - hypercube, true - cross)
 
 //-------------------------- Macroses ---------------------------
 #define PF_MIN(x,y) (x<y?x:y)

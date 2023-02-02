@@ -218,8 +218,11 @@ void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 	}
 //	basis_Init();
 	PD_K = 1;
-	for (int i = 0; i < PD_n - 1; i++)
-		PD_K *= (2 * PP_ETA + 1);
+	if (!PP_CROSSFILED)
+		for (int i = 0; i < PD_n - 1; i++)
+			PD_K *= (2 * PP_ETA + 1);
+	else
+		PD_K = 2 * PP_ETA * (PD_n - 1) + 1;
 
 #ifdef PP_IMAGE_OUT
 	PD_I = new PT_float_T[PD_K];
@@ -243,7 +246,7 @@ void PC_bsf_MapF(PT_bsf_mapElem_T* mapElem, PT_bsf_reduceElem_T* reduceElem, int
 ) {
 	PT_vector_T target;
 	int i = mapElem->inequalityNo;
-	G(BSF_sv_parameter, PD_g);
+	G(BSF_sv_parameter, PD_g, PP_CROSSFILED);
 	//targetProjection(i, PD_g, target);
 	if (dotproduct_Vector(PD_A[i], PD_c) > 0/* && isInnerPoint(target)*/) {
 		//if (i == 2) {
@@ -305,7 +308,7 @@ void PC_bsf_ProcessResults(
 #endif
 #ifdef PP_RECEPTIVE_FIELD_OUT
 	PD_field[parameter->k] = new PT_float_T[PD_n];
-	G(*parameter, PD_field[parameter->k]);
+	G(*parameter, PD_field[parameter->k], PP_CROSSFILED);
 #endif
 	parameter->k += 1;
 	if (parameter->k >= PD_K) {
@@ -589,27 +592,49 @@ inline void basis_Print() {
 	}
 }
 
-inline void G(PT_bsf_parameter_T parameter, PT_vector_T out) {
+inline void G(PT_bsf_parameter_T parameter, PT_vector_T out, bool cross) {
 	PT_vector_T tempPoint;
 	PT_vector_T coordinate;
 	PT_integer_T dimensionPointsNumber;
-	int i[PP_MAX_N];
+	int i[PP_MAX_N], currentDimension;
 	PT_integer_T pointNo = parameter.k;
-
-	for (int j = PD_n - 1; j > 0; j--) {
-		dimensionPointsNumber = (PT_integer_T)powf(2 * PP_ETA + 1, (PT_float_T)j - 1); //Possible overfilling!
-		i[j - 1] = (int)(pointNo / dimensionPointsNumber);
-		pointNo = pointNo % dimensionPointsNumber;
+	
+	if (!cross) {
+		for (int j = PD_n - 1; j > 0; j--) {
+			dimensionPointsNumber = (PT_integer_T)powf(2 * PP_ETA + 1, (PT_float_T)j - 1); //Possible overfilling!
+			i[j - 1] = (int)(pointNo / dimensionPointsNumber);
+			pointNo = pointNo % dimensionPointsNumber;
+		}
+	}
+	else
+	{
+		dimensionPointsNumber = 2 * PP_ETA;
+		currentDimension = (int)(pointNo / dimensionPointsNumber);
+		pointNo = (pointNo % dimensionPointsNumber);
+		for (int j = 0; j < PD_n - 1; j++) {
+			if (j != currentDimension)
+				i[j] = 0;
+			else
+				if (pointNo < PP_ETA)
+					i[j] = pointNo - PP_ETA;
+				else
+					i[j] = pointNo - PP_ETA + 1;
+		}
 	}
 	copy_Vector(tempPoint, PD_z);
 	for (int j = 1; j < PD_n; j++) {
 		copy_Vector(coordinate, PD_E[j]);
-		multiply_Vector(coordinate, (PT_float_T)(i[j - 1] * PP_DELTA - PP_ETA * PP_DELTA));
+		if(!cross)
+			multiply_Vector(coordinate, (PT_float_T)(i[j - 1] * PP_DELTA - PP_ETA * PP_DELTA));
+		else
+			multiply_Vector(coordinate, (PT_float_T)(i[j - 1] * PP_DELTA));
 		add_Vector(tempPoint, coordinate);
 	}
 	for (int i = 0; i < PD_n; i++)
 		out[i] = tempPoint[i];
 };
+
+
 
 inline bool isInnerPoint(PT_vector_T point) {
 	bool result = true;
