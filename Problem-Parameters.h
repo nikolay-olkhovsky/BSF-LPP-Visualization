@@ -15,7 +15,7 @@ This source code is developed based on the BSF skeleton (https://github.com/leon
 #define PP_ETA		30									// Rank of receptive field 		
 #define PP_DELTA	0.2									// Density of receptive field
 #define PP_MAX_K	2147483647	            			// Maximal number of receptive field points
-#define PP_PATH		"C:/CROSSFIELD/"	// Working directory of the application
+#define PP_PATH		"C:/EXTRACTED/"	// Working directory of the application
 //#define PP_PATH		"/home/olkhovskiina/input/"	// Working directory of the application
 #define PP_LPP_FILE	"lpp.txt.pack"
 #define PP_TRACE_FILE "lp_dataset_tr.mtx.pack"

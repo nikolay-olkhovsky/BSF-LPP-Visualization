@@ -68,7 +68,9 @@ static void BC_Master() {// The head function of the master process.
 		if (BD_jobCase == BD_JOB_RESET || BD_newJobCase == BD_JOB_RESET) {			// Init data on Master
 			if (BD_jobCase != BD_JOB_RESET)
 				PC_bsf_ProblemOutput(&BD_extendedReduceResult_P->elem, BD_extendedReduceResult_P->reduceCounter, BD_order.parameter, BD_t);
+#ifdef PP_BSF_ITER_OUTPUT
 			cout << BD_rank << ": RESET job started!" << endl;
+#endif
 			BD_success = true;
 			PC_bsf_Init(&BD_success, &(BD_order.parameter));
 			if (!BD_success) {
@@ -117,7 +119,9 @@ static void BC_Master() {// The head function of the master process.
 		switch (BD_jobCase) {
 			case BD_JOB_RESET:
 				// Process results of RESET
+#ifdef PP_BSF_ITER_OUTPUT
 				cout << BD_rank << ": result of RESET job is " << BD_success << endl;
+#endif
 				if (!BD_success) {
 					cout << BD_rank << ": RESET if FAILED! Aborting... " << endl;
 					BD_exit = BD_EXIT;

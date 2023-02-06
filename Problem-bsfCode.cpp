@@ -367,6 +367,7 @@ void PC_bsf_JobDispatcher(
 
 void PC_bsf_ParametersOutput(PT_bsf_parameter_T parameter) {
 	cout << "Problem " << PD_currentProblem << " of " << PD_problemsNumber << ", trace " << PD_currentTrace << " of " << PD_tracesNumber << endl;
+#ifdef PP_BSF_ITER_OUTPUT
 	cout << "Number of receptive points: " << PD_K << endl;
 	cout << "Trace point: ";
 	for (int i = 0; i < PD_n; i++) {
@@ -380,6 +381,7 @@ void PC_bsf_ParametersOutput(PT_bsf_parameter_T parameter) {
 	cout << endl;
 	basis_Print();
 	cout << endl;
+#endif // PP_BSF_ITER_OUTPUT
 	/*	cout << "============================================== Problem parameters ===============================================" << endl;
 		cout << "Problem ID: " << PD_currentProblem << endl;
 		cout << "Number of Workers: " << BSF_sv_numOfWorkers << endl;
@@ -462,7 +464,9 @@ void PC_bsf_ProblemOutput(PT_bsf_reduceElem_T* reduceResult, int reduceCounter, 
 		if (fprintf(PD_stream_outFile, ";%f", PD_cosVector[i]) == 0)
 			cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_cosVector index" << i << endl;
 	fprintf(PD_stream_outFile, "\n");
+#ifdef PP_BSF_ITER_OUTPUT
 	cout << "End of writing to " << PD_outFilename << endl;
+#endif // PP_BSF_ITER_OUTPUT
 	PD_id++;
 
 #ifdef PP_RECEPTIVE_FIELD_OUT
@@ -475,8 +479,10 @@ void PC_bsf_ProblemOutput(PT_bsf_reduceElem_T* reduceResult, int reduceCounter, 
 				cout << "Error writing to " << PD_retFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_I index" << i << endl;
 	}
 	fprintf(PD_stream_retFile, "\n");
+#ifdef PP_BSF_ITER_OUTPUT
 	cout << "End of writing to " << PD_retFilename << endl;
-#endif
+#endif // PP_BSF_ITER_OUTPUT
+#endif // PP_RECEPTIVE_FIELD_OUT
 }
 
 // 1. Movement on Polytope
