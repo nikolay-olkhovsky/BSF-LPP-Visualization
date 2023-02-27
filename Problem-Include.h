@@ -9,6 +9,7 @@ This source code has been produced with using BSF-skeleton
 #include <cstdlib>
 #include <cstddef>
 #include <cstdio>
+#include <inicpp.h>
 #include <cfloat>
 #include <iomanip>
 #include <iostream>

@@ -22,7 +22,26 @@ void PC_bsf_SetInitParameter(PT_bsf_parameter_T* parameter) {
 }
 
 void PC_bsf_Start(bool* success) {
+	ini::IniFile config;
 	int packageSize = 0;
+
+	config.load(PP_FILE_INI);
+	PP_PATH = config["general"]["PP_PATH"].as<string>();
+	PP_PROBLEM_NAME = config["general"]["PP_PROBLEM_NAME"].as<string>();
+	PP_MTX_PREFIX = config["general"]["PP_MTX_PREFIX"].as<string>();
+	PP_MTX_POSTFIX_TR = config["general"]["PP_MTX_POSTFIX_TR"].as<string>();
+
+	PP_N = config["general"]["PP_N"].as<int>();
+	PP_LPP_FILE = config["general"]["PP_LPP_FILE"].as<string>();
+	PP_ETA = config["visualization"]["PP_ETA"].as<int>();
+	PP_DELTA = config["visualization"]["PP_DELTA"].as<double>();
+	PP_MTX_POSTFIX_RET = config["visualization"]["PP_MTX_POSTFIX_RET"].as<string>();
+	PP_MTX_POSTFIX_IM = config["visualization"]["PP_MTX_POSTFIX_IM"].as<string>();
+	PP_IMAGE_OUT = config["visualization"]["PP_IMAGE_OUT"].as<bool>();
+	PP_RECEPTIVE_FIELD_OUT = config["visualization"]["PP_RECEPTIVE_FIELD_OUT"].as<bool>();
+	PP_CROSSFILED = config["visualization"]["PP_CROSSFILED"].as<bool>();
+
+	PD_problemName = PP_PROBLEM_NAME;
 	PD_id = 1;
 	PD_currentProblem = 0;
 	PD_initState = true;
@@ -43,7 +62,9 @@ void PC_bsf_Start(bool* success) {
 	}
 
 	PD_traceFilename = PP_PATH;
-	PD_traceFilename += PP_TRACE_FILE;
+	PD_traceFilename += PP_MTX_PREFIX;
+	PD_traceFilename += PD_problemName;
+	PD_traceFilename += PP_MTX_POSTFIX_TR;
 	PD_stream_traceFile = fopen(PD_traceFilename.c_str(), "r");
 	if (PD_stream_traceFile == NULL) {
 		cout << '[' << BSF_sv_mpiRank << "]: Failure of opening file '" << PD_traceFilename << "'.\n";
@@ -62,7 +83,9 @@ void PC_bsf_Start(bool* success) {
 	}
 
 	PD_outFilename = PP_PATH;
-	PD_outFilename += PP_IMAGE_FILE;
+	PD_outFilename += PP_MTX_PREFIX;
+	PD_outFilename += PD_problemName;
+	PD_outFilename += PP_MTX_POSTFIX_IM;
 	PD_stream_outFile = fopen(PD_outFilename.c_str(), "w");
 	if (PD_stream_outFile == NULL) {
 		cout << '[' << BSF_sv_mpiRank << "]: Failure of opening file '" << PD_outFilename << "'.\n";
@@ -72,7 +95,9 @@ void PC_bsf_Start(bool* success) {
 
 	//--------------- Opening retina file ------------------
 	PD_retFilename = PP_PATH;
-	PD_retFilename += PP_RETINA_FILE;
+	PD_retFilename += PP_MTX_PREFIX;
+	PD_retFilename += PD_problemName;
+	PD_retFilename += PP_MTX_POSTFIX_RET;
 
 	PD_stream_retFile = fopen(PD_retFilename.c_str(), "w");
 	if (PD_stream_retFile == NULL) {
@@ -224,13 +249,11 @@ void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 	else
 		PD_K = 2 * PP_ETA * (PD_n - 1) + 1;
 
-#ifdef PP_IMAGE_OUT
-	PD_I = new PT_float_T[PD_K];
-#endif
+	if(PP_IMAGE_OUT)
+		PD_I = new PT_float_T[PD_K];
 
-#ifdef PP_RECEPTIVE_FIELD_OUT
-	PD_field = new PT_float_T* [PD_K];
-#endif
+	if(PP_RECEPTIVE_FIELD_OUT)
+		PD_field = new PT_float_T* [PD_K];
 }
 
 void PC_bsf_SetListSize(int* listSize) {
@@ -303,13 +326,14 @@ void PC_bsf_ProcessResults(
 	int* nextJob,
 	bool* exit // "true" if Stopping Criterion is satisfied, and "false" otherwise
 ) {
-#ifdef PP_IMAGE_OUT
-	PD_I[parameter->k] = reduceResult->objectiveDistance;
-#endif
-#ifdef PP_RECEPTIVE_FIELD_OUT
-	PD_field[parameter->k] = new PT_float_T[PD_n];
-	G(*parameter, PD_field[parameter->k], PP_CROSSFILED);
-#endif
+	if (PP_IMAGE_OUT)
+		PD_I[parameter->k] = reduceResult->objectiveDistance;
+
+	if (PP_RECEPTIVE_FIELD_OUT) {
+		PD_field[parameter->k] = new PT_float_T[PD_n];
+		G(*parameter, PD_field[parameter->k], PP_CROSSFILED);
+	}
+
 	parameter->k += 1;
 	if (parameter->k >= PD_K) {
 		if (PD_currentTrace < PD_tracesNumber - 1) {
@@ -452,37 +476,39 @@ void PC_bsf_IterOutput_3(PT_bsf_reduceElem_T_3* reduceResult, int reduceCounter,
 // 0. Start
 void PC_bsf_ProblemOutput(PT_bsf_reduceElem_T* reduceResult, int reduceCounter, PT_bsf_parameter_T parameter, double t) {
 	// Output precedents
-	if (fprintf(PD_stream_outFile, "%d;%d;%d", PD_id, PD_currentProblem, PD_currentTrace) == 0)
-		cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << endl;
-	for(int i = 0; i < PD_K; i++)
-		if (fprintf(PD_stream_outFile, ";%f", PD_I[i]) == 0)
-			cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_I index" << i << endl;
-	for (int i = 0; i < PD_n; i++)
-		if (fprintf(PD_stream_outFile, ";%f", PD_answerVector[i]) == 0)
-			cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_answerVector index" << i << endl;
-	for (int i = 0; i < PD_n; i++)
-		if (fprintf(PD_stream_outFile, ";%f", PD_cosVector[i]) == 0)
-			cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_cosVector index" << i << endl;
-	fprintf(PD_stream_outFile, "\n");
+	if (PP_IMAGE_OUT) {
+		if (fprintf(PD_stream_outFile, "%d;%d;%d", PD_id, PD_currentProblem, PD_currentTrace) == 0)
+			cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << endl;
+		for (int i = 0; i < PD_K; i++)
+			if (fprintf(PD_stream_outFile, ";%f", PD_I[i]) == 0)
+				cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_I index" << i << endl;
+		for (int i = 0; i < PD_n; i++)
+			if (fprintf(PD_stream_outFile, ";%f", PD_answerVector[i]) == 0)
+				cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_answerVector index" << i << endl;
+		for (int i = 0; i < PD_n; i++)
+			if (fprintf(PD_stream_outFile, ";%f", PD_cosVector[i]) == 0)
+				cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_cosVector index" << i << endl;
+		fprintf(PD_stream_outFile, "\n");
 #ifdef PP_BSF_ITER_OUTPUT
 	cout << "End of writing to " << PD_outFilename << endl;
 #endif // PP_BSF_ITER_OUTPUT
+	}
 	PD_id++;
 
-#ifdef PP_RECEPTIVE_FIELD_OUT
-	// Outpur retinas
-	if (fprintf(PD_stream_retFile, "%d;%d;%d", PD_id-1, PD_K, PD_n) == 0)
-		cout << "Error writing to " << PD_retFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << endl;
-	for (int i = 0; i < PD_K; i++) {
-		for (int j = 0; j < PD_n; j++)
-			if (fprintf(PD_stream_retFile, ";%.14f", PD_field[i][j]) == 0)
-				cout << "Error writing to " << PD_retFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_I index" << i << endl;
-	}
-	fprintf(PD_stream_retFile, "\n");
+	if (PP_RECEPTIVE_FIELD_OUT) {
+		// Outpur retinas
+		if (fprintf(PD_stream_retFile, "%d;%d;%d", PD_id - 1, PD_K, PD_n) == 0)
+			cout << "Error writing to " << PD_retFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << endl;
+		for (int i = 0; i < PD_K; i++) {
+			for (int j = 0; j < PD_n; j++)
+				if (fprintf(PD_stream_retFile, ";%.14f", PD_field[i][j]) == 0)
+					cout << "Error writing to " << PD_retFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << ", PD_I index" << i << endl;
+		}
+		fprintf(PD_stream_retFile, "\n");
 #ifdef PP_BSF_ITER_OUTPUT
-	cout << "End of writing to " << PD_retFilename << endl;
+		cout << "End of writing to " << PD_retFilename << endl;
 #endif // PP_BSF_ITER_OUTPUT
-#endif // PP_RECEPTIVE_FIELD_OUT
+	}
 }
 
 // 1. Movement on Polytope

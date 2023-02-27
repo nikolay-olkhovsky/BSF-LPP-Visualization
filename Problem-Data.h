@@ -31,15 +31,11 @@ static PT_vector_T PD_nextPoint;	// Next point in the trace
 static PT_vector_T PD_answerVector;	// Answer for the precedent
 static PT_vector_T PD_fieldVector;	// Answer for the precedent
 static PT_vector_T PD_cosVector;	// Answer for the precedent
-
-#ifdef PP_IMAGE_OUT
 static PT_image_T PD_I; // Retina
-#endif
-
-#ifdef PP_RECEPTIVE_FIELD_OUT
 static PT_field_T PD_field;
-#endif
 //========================== Files ================================================
+static string PD_problemName;
+
 static FILE* PD_stream_lppFile;
 static string PD_lppFilename; /* LPP file in the following format:
 ------------ begin of file -------------
