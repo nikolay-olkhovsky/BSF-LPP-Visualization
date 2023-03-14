@@ -13,6 +13,7 @@ static int				PD_n;		// Space dimension
 static int				PD_m;		// Number of inequalities
 static PT_integer_T		PD_K;		// Number of receptive fied points
 static PT_integer_T		PD_id;		// Number of current precedent
+static PT_float_T		PD_time;	// Time counter
 static PT_integer_T		PD_problemsNumber;
 static PT_integer_T		PD_currentProblem;
 static PT_integer_T		PD_tracesNumber;

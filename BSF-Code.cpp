@@ -67,7 +67,7 @@ static void BC_Master() {// The head function of the master process.
 	do {
 		if (BD_jobCase == BD_JOB_RESET || BD_newJobCase == BD_JOB_RESET) {			// Init data on Master
 			if (BD_jobCase != BD_JOB_RESET)
-				PC_bsf_ProblemOutput(&BD_extendedReduceResult_P->elem, BD_extendedReduceResult_P->reduceCounter, BD_order.parameter, BD_t);
+				PC_bsf_ProblemOutput(&BD_extendedReduceResult_P->elem, BD_extendedReduceResult_P->reduceCounter, BD_order.parameter, BD_t + MPI_Wtime());
 #ifdef PP_BSF_ITER_OUTPUT
 			cout << BD_rank << ": RESET job started!" << endl;
 #endif

@@ -45,6 +45,7 @@ void PC_bsf_Start(bool* success) {
 	PD_id = 1;
 	PD_currentProblem = 0;
 	PD_initState = true;
+	PD_time = 0.;
 
 	PD_lppFilename = PP_PATH;
 	PD_lppFilename += PP_LPP_FILE;
@@ -476,6 +477,8 @@ void PC_bsf_IterOutput_3(PT_bsf_reduceElem_T_3* reduceResult, int reduceCounter,
 // 0. Start
 void PC_bsf_ProblemOutput(PT_bsf_reduceElem_T* reduceResult, int reduceCounter, PT_bsf_parameter_T parameter, double t) {
 	// Output precedents
+	PD_time += t;
+	cout << "Time: " << PD_time << endl;
 	if (PP_IMAGE_OUT) {
 		if (fprintf(PD_stream_outFile, "%d;%d;%d", PD_id, PD_currentProblem, PD_currentTrace) == 0)
 			cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << endl;
