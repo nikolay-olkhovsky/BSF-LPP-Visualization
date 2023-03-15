@@ -208,6 +208,16 @@ void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 				return;
 			}
 
+			if (PD_tracesNumber < 1) {
+				if(BSF_sv_mpiRank == BSF_sv_mpiMaster)
+					cout << "[" << BSF_sv_mpiRank << "] :"
+					<< "Wrong trace for problem ID: " << pid << endl
+					<< "Traces number: " << PD_tracesNumber << " (must be > 2)." << endl;
+				PD_currentProblem++;
+				PD_currentTrace = 0;
+				continue;
+			}
+
 			for (int i = 0; i < PD_n; i++) {
 				if (fscanf(PD_stream_traceFile, "%f", &buf) == 0) {
 					cout << "[" << BSF_sv_mpiRank << "]: Unexpected end of TRACE file (first point)" << endl;
@@ -218,7 +228,7 @@ void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 			}
 
 			if(PD_tracesNumber < 2 && BSF_sv_mpiRank == BSF_sv_mpiMaster)
-				cout << "[" << BSF_sv_mpiRank << "] :" << endl
+				cout << "[" << BSF_sv_mpiRank << "] :"
 				<< "Wrong trace for problem ID: " << pid << endl
 				<< "Traces number: " << PD_tracesNumber << " (must be > 2)." << endl;
 
