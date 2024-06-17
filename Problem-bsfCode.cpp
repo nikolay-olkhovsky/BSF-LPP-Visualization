@@ -43,10 +43,20 @@ void PC_bsf_Start(bool* success) {
 
 	PD_problemName = PP_PROBLEM_NAME;
 	PD_id = 1;
-	PD_currentProblem = 0;
+	PD_currentProblem = 1;
 	PD_initState = true;
-	PD_time = 0.;
+	PD_time = clock();
 
+#ifdef PP_DATABASE_OUTPUT
+	storage.sync_schema(true);
+	PD_problemIds = storage.select(&Problem::id);
+	PD_problemsNumber = PD_problemIds.size();
+	PD_problems = storage.get_all<Problem>();
+	PD_inequalities = storage.get_all<Inequality>();
+	PD_points = storage.get_all<SurfacePoint>();
+
+	storage.begin_transaction();
+#else
 	PD_lppFilename = PP_PATH;
 	PD_lppFilename += PP_LPP_FILE;
 	PD_stream_lppFile = fopen(PD_lppFilename.c_str(), "r");
@@ -115,6 +125,7 @@ void PC_bsf_Start(bool* success) {
 		return;
 	}
 	*/
+#endif // PP_DATABASE_OUTPUT
 }
 
 void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
@@ -132,6 +143,76 @@ void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 	switch (PD_read_state) {
 	case PP_STATE_NEW_PROBLEM:
 		do {
+#ifdef PP_DATABASE_OUTPUT
+			vector<double> _buff;
+			vector<Inequality> inequalities;
+			//auto problem = storage.get<Problem>(PD_problemIds[PD_currentProblem]);
+			auto problem = PD_problems[PD_currentProblem];
+			//auto inequalities = storage.get_all<Inequality>(sqlite_orm::where(sqlite_orm::c(&Inequality::problem_id) == problem.id));
+			copy_if(PD_inequalities.begin(), PD_inequalities.end(), back_inserter(inequalities), [&problem](const Inequality& item)->bool {return item.problem_id == problem.id; });
+			//PD_traceIds = storage.select(&SurfacePoint::id, sqlite_orm::where(sqlite_orm::c(&SurfacePoint::problem_id) == problem.id));
+			PD_traces.clear();
+			copy_if(PD_points.begin(), PD_points.end(), back_inserter(PD_traces), [&problem](const SurfacePoint& item)->bool {return item.problem_id == problem.id; });
+
+			//auto currentPoint = storage.get<SurfacePoint>(PD_traceIds[0]);
+			auto currentPoint = PD_traces[0];
+			
+			PD_tracesNumber = PD_traces.size();
+			if (PD_tracesNumber < 1) {
+				if (BSF_sv_mpiRank == BSF_sv_mpiMaster)
+					cout << "[" << BSF_sv_mpiRank << "] :"
+					<< "Wrong trace for problem ID: " << pid << endl
+					<< "Traces number: " << PD_tracesNumber << " (must be > 2)." << endl;
+				PD_currentProblem++;
+				PD_currentTrace = 0;
+				continue;
+			}
+
+			PD_n = problem.N;
+			PD_m = inequalities.size();
+			if (PD_m > PP_MAX_M || PD_n > PP_MAX_N) {
+				cout << "[" << BSF_sv_mpiRank << "] :" << endl
+					<< "Wrong problem parameters!" << endl
+					<< "Number of inequalities: " << PD_m << " (max: " << PP_MAX_M << ")." << endl
+					<< "Number of dimensions: " << PD_n << " (max: " << PP_MAX_N << ")." << endl;
+				*success = false;
+				return;
+			}
+			PD_m = 0;
+
+			for (unsigned i = 0; i < PD_n; i++) {
+				for (unsigned j = 0; j < PD_n; j++)
+					if (i == j) PD_A[PD_m][j] = 1.;
+					else		PD_A[PD_m][j] = 0.;
+				PD_b[PD_m] = problem.high;
+				PD_m++;
+			}
+			for (auto& inequality : inequalities) {
+				_buff = charToDouble(inequality.coefficients);
+				for (unsigned j = 0; j < PD_n; j++)
+					PD_A[PD_m][j] = _buff[j];
+				PD_b[PD_m] = inequality.b;
+				PD_m++;
+			}
+			for (unsigned i = 0; i < PD_n; i++) {
+				for (unsigned j = 0; j < PD_n; j++)
+					if (i == j) PD_A[PD_m][j] = -1.;
+					else		PD_A[PD_m][j] = 0.;
+				PD_b[PD_m] = problem.low;
+				PD_m++;
+			}
+
+			_buff = charToDouble(problem.c);
+			for (unsigned i = 0; i < PD_n; i++) {
+				PD_c[i] = _buff[i];
+			}
+
+			//PD_currentPointId = currentPoint.id;
+			_buff = charToDouble(currentPoint.coefficients);
+			for (unsigned i = 0; i < PD_n; i++) {
+				PD_nextPoint[i] = _buff[i];
+			}
+#else
 			if (fscanf(PD_stream_lppFile, "%d%d%d", &pid, &PD_m, &PD_n) == 0) {
 				cout << '[' << BSF_sv_mpiRank << "]: Unexpected end of LPP file header" << endl;
 				*success = false;
@@ -231,11 +312,33 @@ void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 				cout << "[" << BSF_sv_mpiRank << "] :"
 				<< "Wrong trace for problem ID: " << pid << endl
 				<< "Traces number: " << PD_tracesNumber << " (must be > 2)." << endl;
-
+#endif //PP_DATABASE_OUTPUT
 			PD_currentProblem++;
 			PD_currentTrace = 0;
 		} while (PD_tracesNumber < 2);
+
 	case PP_STATE_NEW_POINT:
+#ifdef PP_DATABASE_OUTPUT
+		if (PD_currentTrace < PD_tracesNumber - 1) {
+			vector<double> _buff;
+			//auto currentPoint = storage.get<SurfacePoint>(PD_traceIds[PD_currentTrace + 1]);
+			auto currentPoint = PD_traces[PD_currentTrace + 1];
+
+			_buff = charToDouble(currentPoint.coefficients);
+			for (unsigned i = 0; i < PD_n; i++) {
+				PD_z[i] = PD_nextPoint[i]; // Move Z to next point in the trace
+				PD_nextPoint[i] = _buff[i]; // And read forward next point in the trace
+				PD_answerVector[i] = PD_nextPoint[i] - PD_z[i];
+			}
+		}
+		else {
+			for (unsigned i = 0; i < PD_n; i++) {
+				PD_z[i] = PD_nextPoint[i]; // Move Z to next point in the trace
+				PD_nextPoint[i] = PD_z[i]; // And read forward next point in the trace
+				PD_answerVector[i] = 0.;
+			}
+		}
+#else
 		for (int i = 0; i < PD_n; i++) {
 			PD_z[i] = PD_nextPoint[i]; // Move Z to next point in the trace
 			if (fscanf(PD_stream_traceFile, "%f", &buf) == 0) {
@@ -246,10 +349,19 @@ void PC_bsf_Init(bool* success, PT_bsf_parameter_T* parameter) {
 			PD_nextPoint[i] = buf; // And read forward next point in the trace
 			PD_answerVector[i] = PD_nextPoint[i] - PD_z[i];
 		}
+#endif //PP_DATABASE_OUTPUT
 		basis_Init();
-		fieldProjection(PD_nextPoint, PD_fieldVector);
-		coordinateAngles(PD_fieldVector, PD_cosVector);
-		norm_Vector(PD_answerVector);
+		if (PD_currentTrace < PD_tracesNumber - 1) {
+			fieldProjection(PD_nextPoint, PD_fieldVector);
+			coordinateAngles(PD_fieldVector, PD_cosVector);
+			norm_Vector(PD_answerVector);
+		}
+		else
+			for (unsigned i = 0; i < PD_n; i++) {
+				PD_fieldVector[i] = 0.;
+				PD_cosVector[i] = 0.;
+				PD_answerVector[i] = 0.;
+			}
 		PD_currentTrace++;
 	}
 //	basis_Init();
@@ -347,7 +459,7 @@ void PC_bsf_ProcessResults(
 
 	parameter->k += 1;
 	if (parameter->k >= PD_K) {
-		if (PD_currentTrace < PD_tracesNumber - 1) {
+		if (PD_currentTrace < PD_tracesNumber) {
 			parameter->state = PP_STATE_NEW_POINT;
 			*nextJob = BD_JOB_RESET;
 		}
@@ -355,8 +467,10 @@ void PC_bsf_ProcessResults(
 			parameter->state = PP_STATE_NEW_PROBLEM;
 			*nextJob = BD_JOB_RESET;
 		}
-		else
+		else {
+			storage.commit();
 			*exit = true;
+		}
 	}
 }
 
@@ -401,7 +515,7 @@ void PC_bsf_JobDispatcher(
 }
 
 void PC_bsf_ParametersOutput(PT_bsf_parameter_T parameter) {
-	cout << "Problem " << PD_currentProblem << " of " << PD_problemsNumber << ", trace " << PD_currentTrace << " of " << PD_tracesNumber << endl;
+//	cout << "Problem " << PD_currentProblem << " of " << PD_problemsNumber << ", trace " << PD_currentTrace << " of " << PD_tracesNumber << endl;
 #ifdef PP_BSF_ITER_OUTPUT
 	cout << "Number of receptive points: " << PD_K << endl;
 	cout << "Trace point: ";
@@ -487,9 +601,53 @@ void PC_bsf_IterOutput_3(PT_bsf_reduceElem_T_3* reduceResult, int reduceCounter,
 // 0. Start
 void PC_bsf_ProblemOutput(PT_bsf_reduceElem_T* reduceResult, int reduceCounter, PT_bsf_parameter_T parameter, double t) {
 	// Output precedents
-	PD_time += t;
-	cout << "Time: " << PD_time << endl;
+	if (PD_currentProblem % 1000 == 0) {
+		storage.commit();
+		storage.begin_transaction();
+		cout << PD_currentProblem << " problems processed. Time: " << (clock() - PD_time) / CLOCKS_PER_SEC << endl;
+	}
 	if (PP_IMAGE_OUT) {
+#ifdef PP_DATABASE_OUTPUT
+		Image newImage;
+		vector<double> _buff(PD_K);
+
+		newImage.id = 0;
+		newImage.surface_point_id = PD_traces[PD_currentTrace - 1].id;
+		newImage.density = PP_DELTA;
+		newImage.rank = PP_ETA;
+
+		_buff.resize(PD_n);
+		for (int i = 0; i < PD_n; i++)
+			_buff[i] = PD_answerVector[i];
+		newImage.answer_vector = doubleToChar(_buff);
+
+		_buff.resize(PD_n);
+		for (int i = 0; i < PD_n; i++)
+			_buff[i] = PD_cosVector[i];
+		newImage.cosine_vector = doubleToChar(_buff);
+
+		newImage.num_of_points = PD_K;
+
+		_buff.resize(PD_K);
+		for (int i = 0; i < PD_K; i++)
+			_buff[i] = PD_I[i];
+		newImage.data = doubleToChar(_buff);
+
+		if (PP_RECEPTIVE_FIELD_OUT) {
+			_buff.resize(PD_K * PD_n);
+			int index = 0;
+			for (int i = 0; i < PD_K; i++) {
+				for (int j = 0; j < PD_n; j++)
+					_buff[index++] = PD_field[i][j];
+			}
+			newImage.field_points = doubleToChar(_buff);
+		}
+
+		newImage.id = storage.insert(newImage);
+		//if (newImage.id)
+		//	cout << "New image ID = " << newImage.id << " is successfully saved." << endl;
+	}
+#else
 		if (fprintf(PD_stream_outFile, "%d;%d;%d", PD_id, PD_currentProblem, PD_currentTrace) == 0)
 			cout << "Error writing to " << PD_outFilename << " on problem " << PD_currentProblem << ", trace " << PD_currentTrace << endl;
 		for (int i = 0; i < PD_K; i++)
@@ -522,6 +680,7 @@ void PC_bsf_ProblemOutput(PT_bsf_reduceElem_T* reduceResult, int reduceCounter, 
 		cout << "End of writing to " << PD_retFilename << endl;
 #endif // PP_BSF_ITER_OUTPUT
 	}
+#endif //PP_DATABASE_OUTPUT
 }
 
 // 1. Movement on Polytope
@@ -702,7 +861,8 @@ inline void targetProjection(int i, PT_vector_T _In, PT_vector_T _Out) {
 	copy_Vector(_Out, projection);
 }
 
-inline void fieldProjection(PT_vector_T _In, PT_vector_T _Out) {
+inline void fieldProjection
+(PT_vector_T _In, PT_vector_T _Out) {
 	PT_vector_T projection;
 	PT_vector_T temp;
 	PT_vector_T distance;
@@ -747,3 +907,49 @@ inline PT_float_T bias(int i) {
 	PT_float_T result = (PT_float_T)((dotproduct_Vector(PD_A[i], PD_g) - PD_b[i]) / dotproduct_Vector(PD_A[i], PD_c)) * sqrt(dotproduct_Vector(PD_c, PD_c));
 	return result;
 }
+
+#ifdef PP_DATABASE_OUTPUT
+std::vector<double> charToDouble(std::vector<char> _In) {
+	std::vector<double> _Out;
+	size_t size = _In.size();
+	_Out.resize(size / sizeof(double));
+	std::memcpy(_Out.data(), _In.data(), size);
+	return _Out;
+}
+
+std::vector<char> doubleToChar(std::vector<double> _In) {
+	std::vector<char> _Out;
+	size_t size = _In.size() * sizeof(double);
+	_Out.resize(size);
+	std::memcpy(_Out.data(), _In.data(), size);
+	return _Out;
+}
+
+void printLppForm(Problem problem, std::vector<Inequality> inequalities) {
+	int M = 2 * problem.N + inequalities.size();
+	int width = 10;
+	std::vector<double> _vec;
+	std::cout << problem.id << '\t' << problem.N << '\t' << M << std::endl;
+	for (int i = 0; i < problem.N; i++) {
+		for (int j = 0; j < problem.N; j++)
+			if (i == j) std::cout << std::setw(width) << double(1);
+			else std::cout << std::setw(width) << double(0);
+		std::cout << std::setw(width) << problem.high << std::endl;
+	}
+	for (int i = 0; i < inequalities.size(); i++) {
+		_vec = charToDouble(inequalities[i].coefficients);
+		for (int j = 0; j < problem.N; j++)
+			std::cout << std::setw(width) << _vec[j];
+		std::cout << std::setw(width) << inequalities[i].b << std::endl;
+	}
+	for (int i = 0; i < problem.N; i++) {
+		for (int j = 0; j < problem.N; j++)
+			if (i == j) std::cout << std::setw(width) << double(-1);
+			else std::cout << std::setw(width) << double(0);
+		std::cout << std::setw(width) << problem.low << std::endl;
+	}
+	_vec = charToDouble(problem.c);
+	std::copy(_vec.begin(), _vec.end(), std::ostream_iterator<double>(std::cout, "\t"));
+	std::cout << std::endl;
+}
+#endif // PP_DATABASE_OUTPUT

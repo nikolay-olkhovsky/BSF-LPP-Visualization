@@ -36,7 +36,57 @@ static PT_image_T PD_I; // Retina
 static PT_field_T PD_field;
 //========================== Files ================================================
 static string PD_problemName;
-
+#ifdef PP_DATABASE_OUTPUT
+static auto storage = sqlite_orm::make_storage("D:/DNN/cross3_rank1000/dataset.sqlite3",
+    sqlite_orm::make_table("problems",
+        sqlite_orm::make_column("id", &Problem::id, sqlite_orm::primary_key()),
+        sqlite_orm::make_column("N", &Problem::N),
+        sqlite_orm::make_column("seed", &Problem::seed),
+        sqlite_orm::make_column("high", &Problem::high),
+        sqlite_orm::make_column("low", &Problem::low),
+        sqlite_orm::make_column("c", &Problem::c)
+    ),
+    sqlite_orm::make_table("inequalities",
+        sqlite_orm::make_column("id", &Inequality::id, sqlite_orm::primary_key()),
+        sqlite_orm::make_column("coefficients", &Inequality::coefficients),
+        sqlite_orm::make_column("b", &Inequality::b),
+        sqlite_orm::make_column("problem_id", &Inequality::problem_id),
+        sqlite_orm::foreign_key(&Inequality::problem_id).references(&Problem::id)
+    ),
+    sqlite_orm::make_table("surface_points",
+        sqlite_orm::make_column("id", &SurfacePoint::id, sqlite_orm::primary_key()),
+        sqlite_orm::make_column("coefficients", &SurfacePoint::coefficients),
+        sqlite_orm::make_column("problem_id", &SurfacePoint::problem_id),
+        sqlite_orm::foreign_key(&SurfacePoint::problem_id).references(&Problem::id)
+    ),
+    sqlite_orm::make_table("precedents",
+        sqlite_orm::make_column("id", &Precedent::id, sqlite_orm::primary_key().autoincrement()),
+        sqlite_orm::make_column("face", &Precedent::face),
+        sqlite_orm::make_column("d", &Precedent::d),
+        sqlite_orm::make_column("face_count", &Precedent::face_count),
+        sqlite_orm::make_column("surface_point_id", &Precedent::surface_point_id),
+        sqlite_orm::foreign_key(&Precedent::surface_point_id).references(&SurfacePoint::id)
+    ),
+    sqlite_orm::make_table("images",
+        sqlite_orm::make_column("id", &Image::id, sqlite_orm::primary_key().autoincrement()),
+        sqlite_orm::make_column("density", &Image::density),
+        sqlite_orm::make_column("rank", &Image::rank),
+        sqlite_orm::make_column("answer_vector", &Image::answer_vector),
+        sqlite_orm::make_column("cosine_vector", &Image::cosine_vector),
+        sqlite_orm::make_column("num_of_points", &Image::num_of_points),
+        sqlite_orm::make_column("data", &Image::data),
+        sqlite_orm::make_column("surface_point_id", &Image::surface_point_id),
+        sqlite_orm::make_column("field_points", &Image::field_points),
+        sqlite_orm::foreign_key(&Image::surface_point_id).references(&SurfacePoint::id)
+    )
+);
+static std::vector<unsigned> PD_problemIds;
+static std::vector<unsigned> PD_traceIds;
+std::vector<Problem> PD_problems;
+std::vector<Inequality> PD_inequalities;
+std::vector<SurfacePoint> PD_points;
+std::vector<SurfacePoint> PD_traces;
+#else
 static FILE* PD_stream_lppFile;
 static string PD_lppFilename; /* LPP file in the following format:
 ------------ begin of file -------------
@@ -71,3 +121,4 @@ m n
 R_1 R_2 ... R_n
 ...
 ------------ end of file----------------*/
+#endif // PP_DATABASE_OUTPUT

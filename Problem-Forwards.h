@@ -29,3 +29,9 @@ inline void fieldProjection(PT_vector_T _In, PT_vector_T _Out);
 inline void coordinateAngles(PT_vector_T _In, PT_vector_T _Out);
 inline PT_float_T objectiveDistance(PT_vector_T g);
 inline PT_float_T bias(int i);
+
+#ifdef PP_DATABASE_OUTPUT
+std::vector<double> charToDouble(std::vector<char> _In);
+std::vector<char> doubleToChar(std::vector<double> _In);
+void printLppForm(Problem problem, std::vector<Inequality> inequalities);
+#endif //PP_DATABASE_OUTPUT

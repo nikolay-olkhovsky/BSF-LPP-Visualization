@@ -20,3 +20,47 @@ typedef PT_float_T		PT_column_T[PP_MAX_M];
 typedef PT_float_T* PT_image_T;
 
 typedef PT_float_T** PT_field_T;
+
+#ifdef PP_DATABASE_OUTPUT
+struct Problem {
+    unsigned id;
+    int N;
+    int seed;
+    double high;
+    double low;
+    std::vector<char> c;
+};
+
+struct Inequality {
+    unsigned id;
+    std::vector<char> coefficients;
+    double b;
+    int problem_id;
+};
+
+struct SurfacePoint {
+    unsigned id;
+    std::vector<char> coefficients;
+    int problem_id;
+};
+
+struct Precedent {
+    unsigned id;
+    int surface_point_id;
+    int face;
+    std::vector<char> d;
+    std::vector<char> face_count;
+};
+
+struct Image {
+    unsigned id;
+    int surface_point_id;
+    double density;
+    double rank;
+    std::vector<char> answer_vector;
+    std::vector<char> cosine_vector;
+    int num_of_points;
+    std::vector<char> data;
+    std::optional<std::vector<char>> field_points;
+};
+#endif // PP_DATABASE_OUTPUT

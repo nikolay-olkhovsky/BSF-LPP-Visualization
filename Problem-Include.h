@@ -19,3 +19,4 @@ This source code has been produced with using BSF-skeleton
 #include <numeric>
 #include <vector>
 #include <omp.h>
+#include <sqlite_orm.h>

@@ -10,6 +10,7 @@ This source code is developed based on the BSF skeleton (https://github.com/leon
 #define PP_FILE_INI "config.ini"
 //=========================== Problem Parameters =========================
 static int PP_N;
+#define PP_DATABASE_OUTPUT
 #define PP_MAX_M	61								// Maximal number of inequalities (PP_N + 1 + PP_NUM_OF_RND_INEQUALITIES)
 #define PP_MAX_N	81									// Maximal  space dimension equals (2*PP_N + 1 + PP_NUM_OF_RND_INEQUALITIES)
 //#define PP_ETA		30									// Rank of receptive field 		
